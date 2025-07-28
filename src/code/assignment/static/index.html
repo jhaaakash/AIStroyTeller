@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Storyteller</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .app-container {
+            max-width: 900px;
+            margin: 50px auto;
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+        
+        .app-title {
+            color: #343a40;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .form-section {
+            margin-bottom: 30px;
+        }
+        
+        .character-input {
+            margin-bottom: 10px;
+        }
+        
+        .story-container {
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            white-space: pre-line;
+        }
+        
+        .loading-spinner {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .btn-primary {
+            background-color: #5e72e4;
+            border-color: #5e72e4;
+        }
+        
+        .btn-primary:hover {
+            background-color: #324cdd;
+            border-color: #324cdd;
+        }
+
+        .character-list {
+            margin-top: 10px;
+        }
+        
+        .character-badge {
+            display: inline-block;
+            background-color: #e9ecef;
+            border-radius: 20px;
+            padding: 5px 12px;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .character-badge .remove-character {
+            cursor: pointer;
+            margin-left: 8px;
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container app-container">
+        <h1 class="app-title">AI Storyteller <span class="text-muted fs-5"></span></h1>
+        
+        <div class="row">
+            <div class="col-lg-5">
+                <div class="form-section">
+                    <h4>Story Parameters</h4>
+                    
+                    <div class="mb-3">
+                        <label for="genre" class="form-label">Genre</label>
+                        <select class="form-select" id="genre">
+                            <option value="choose">Choose a genre</option>
+                            <option value="action">Action</option>
+                            <option value="comedy">Comedy</option>
+                            <option value="sci-fi">Science Fiction</option>
+                            <option value="mystery">Mystery</option>
+                            <option value="romance">Romance</option>
+                            <option value="fantasy">Fantasy</option>
+                            <option value="adventure">Adventure</option>
+                            <option value="horror">Horror</option>
+                            <option value="historical">Historical</option> 
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="numCharacters" class="form-label">Number of Characters</label>
+                        <input type="number" class="form-control" id="numCharacters" min="1" max="10" value="3">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Character Names (Optional)</label>
+                        <div class="input-group character-input">
+                            <input type="text" class="form-control" id="characterName" placeholder="Enter a name">
+                            <button class="btn btn-outline-secondary" type="button" id="addCharacter">Add</button>
+                        </div>
+                        <div class="character-list" id="characterList"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="numParagraphs" class="form-label">Number of Paragraphs</label>
+                        <input type="number" class="form-control" id="numParagraphs" min="1" max="10" value="4">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="model" class="form-label">AI Model</label>
+                        <select class="form-select" id="model">
+                            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                            <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                        </select>
+                    </div>
+                    
+                    <button class="btn btn-primary w-100" id="generateBtn">Generate Story</button>
+                </div>
+            </div>
+            
+            <div class="col-lg-7">
+                <div class="story-section">
+                    <h4>Your Story</h4>
+                    <div id="loading" class="loading-spinner d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Generating your story... This may take a few moments.</p>
+                    </div>
+                    <div id="storyContainer" class="story-container d-none">
+                        <p id="storyText"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const characterNames = [];
+            
+            // Add character to the list
+            document.getElementById('addCharacter').addEventListener('click', function() {
+                const characterNameInput = document.getElementById('characterName');
+                const name = characterNameInput.value.trim();
+                
+                if (name && !characterNames.includes(name)) {
+                    characterNames.push(name);
+                    characterNameInput.value = '';
+                    updateCharacterList();
+                }
+            });
+            
+            // Generate the story
+            document.getElementById('generateBtn').addEventListener('click', function() {
+                const genre = document.getElementById('genre').value;
+                const numCharacters = parseInt(document.getElementById('numCharacters').value);
+                const numParagraphs = parseInt(document.getElementById('numParagraphs').value);
+                const model = document.getElementById('model').value;
+                
+                // Show loading spinner
+                document.getElementById('loading').classList.remove('d-none');
+                document.getElementById('storyContainer').classList.add('d-none');
+                
+                // Prepare the request payload
+                const payload = {
+                    genre: genre,
+                    num_characters: numCharacters,
+                    character_names: characterNames.length > 0 ? characterNames : [],
+                    num_paragraphs: numParagraphs,
+                    model: model
+                };
+                
+                // Send the request to the backend
+                fetch('/api/generate-story', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Hide loading spinner
+                    document.getElementById('loading').classList.add('d-none');
+                    document.getElementById('storyContainer').classList.remove('d-none');
+                    
+                    if (data.success) {
+                        document.getElementById('storyText').textContent = data.story;
+                    } else {
+                        document.getElementById('storyText').textContent = 'Error generating story: ' + data.error;
+                    }
+                })
+                .catch(error => {
+                    // Hide loading spinner and show error
+                    document.getElementById('loading').classList.add('d-none');
+                    document.getElementById('storyContainer').classList.remove('d-none');
+                    document.getElementById('storyText').textContent = 'Error: ' + error.message;
+                });
+            });
+            
+            // Function to update the character list display
+            function updateCharacterList() {
+                const characterListEl = document.getElementById('characterList');
+                characterListEl.innerHTML = '';
+                
+                characterNames.forEach((name, index) => {
+                    const badge = document.createElement('span');
+                    badge.className = 'character-badge';
+                    badge.innerHTML = name + '<span class="remove-character" data-index="' + index + '">&times;</span>';
+                    characterListEl.appendChild(badge);
+                });
+                
+                // Add event listeners to the remove buttons
+                document.querySelectorAll('.remove-character').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const index = parseInt(this.getAttribute('data-index'));
+                        characterNames.splice(index, 1);
+                        updateCharacterList();
+                    });
+                });
+            }
+            
+            // Character name input Enter key handling
+            document.getElementById('characterName').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    document.getElementById('addCharacter').click();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
